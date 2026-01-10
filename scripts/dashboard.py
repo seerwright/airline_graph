@@ -804,18 +804,19 @@ def main():
     # Airport Status Table
     st.header("📍 Airport Status")
     
+    # Add note about time control below the table title
+    st.caption(f"Note: This table updates with Time Control to reflect the status of airports. Current replay time is {current_time.strftime('%H:%M')}Z.")
+    
     airports = sorted(G.nodes())
     
-    # Prepare data for table
+    # Prepare data for table (removed "Airport Name" and "Active Flights" columns)
     airport_data = []
     for airport_code in airports:
         status = create_airport_status_panel(G, airport_code, current_time)
         airport_data.append({
             'Airport': status['airport_code'],
-            'Airport Name': status['airport_name'],
             'Departures': status['total_departures'],
             'Arrivals': status['total_arrivals'],
-            'Active Flights': status['active_flights'],
             'Avg Dep Delay': round(status['avg_departure_delay'], 1) if status['total_departures'] > 0 else None,
             'Avg Arr Delay': round(status['avg_arrival_delay'], 1) if status['total_arrivals'] > 0 else None,
             'On-Time Dep %': round(status['on_time_departure_pct'], 1) if status['total_departures'] > 0 else None,
@@ -824,15 +825,13 @@ def main():
     
     airport_df = pd.DataFrame(airport_data)
     
-    # Configure AgGrid
+    # Configure AgGrid (removed "Airport Name" and "Active Flights" columns)
     gb = GridOptionsBuilder.from_dataframe(airport_df)
     gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
     gb.configure_default_column(filterable=True, sortable=True, resizable=True)
     gb.configure_column("Airport", pinned='left', width=80)
-    gb.configure_column("Airport Name", width=200)
     gb.configure_column("Departures", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0)
     gb.configure_column("Arrivals", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0)
-    gb.configure_column("Active Flights", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0)
     gb.configure_column("Avg Dep Delay", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=1)
     gb.configure_column("Avg Arr Delay", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=1)
     gb.configure_column("On-Time Dep %", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=1)
@@ -913,31 +912,71 @@ def main():
             
             # Find flight edge to get route and delay information
             route = 'N/A'
-            delay = None
+            delay = 0.0  # Initialize to 0.0 instead of None
             status = 'Unknown'
+            is_departure = None
             
             # Search for flight in graph edges
+            flight_found = False
             for origin, destination, key, data in G.edges(data=True, keys=True):
                 if data.get('flight_id') == flight_id:
+                    flight_found = True
                     route = f"{origin} → {destination}"
                     
                     # Get appropriate delay based on event type
                     if event_type == 'departure':
-                        delay = data.get('departure_delay_minutes', 0) or 0
+                        delay_val = data.get('departure_delay_minutes', 0)
+                        is_departure = True
                     elif event_type == 'arrival':
-                        delay = data.get('arrival_delay_minutes', 0) or 0
+                        delay_val = data.get('arrival_delay_minutes', 0)
+                        is_departure = False
+                    else:
+                        delay_val = 0
+                        is_departure = None
                     
-                    # Determine status
-                    if delay is not None:
-                        if delay < -15:
-                            status = 'Early'
-                        elif delay <= 15:
-                            status = 'On-Time'
-                        elif delay <= 30:
-                            status = 'Moderate Delay'
-                        else:
-                            status = 'Significant Delay'
+                    # Convert delay to float for proper comparison
+                    # Handle None, string, or numeric values
+                    if delay_val is None:
+                        delay = 0.0
+                    else:
+                        try:
+                            delay = float(delay_val)
+                        except (ValueError, TypeError):
+                            delay = 0.0
+                    
                     break
+            
+            # Determine status based on event type and delay (only if flight was found)
+            if flight_found:
+                # On-time threshold: exactly 0 or negative (early) is considered on-time/early
+                # Any positive delay is considered "late"
+                if delay < 0:
+                    # Early: specify whether departure or arrival
+                    if is_departure:
+                        status = 'Early Departure'
+                    elif is_departure is False:
+                        status = 'Early Arrival'
+                    else:
+                        status = 'Early'
+                elif delay == 0:
+                    # On-time: generic label (applies to both departures and arrivals)
+                    status = 'On-Time'
+                elif delay <= 30:
+                    # Moderate delay: specify whether departure or arrival
+                    if is_departure:
+                        status = 'Late Departing'
+                    elif is_departure is False:
+                        status = 'Late Arriving'
+                    else:
+                        status = 'Late'
+                else:
+                    # Significant delay: specify whether departure or arrival
+                    if is_departure:
+                        status = 'Significantly Late Departing'
+                    elif is_departure is False:
+                        status = 'Significantly Late Arriving'
+                    else:
+                        status = 'Significantly Late'
             
             events_data.append({
                 'Timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if timestamp else '',

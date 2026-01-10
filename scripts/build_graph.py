@@ -240,8 +240,10 @@ def create_event_level_snapshots(G: nx.MultiDiGraph, flights: List[Dict]) -> Non
         avg_arr_delay = sum(arr_delays) / len(arr_delays) if arr_delays else 0.0
         
         # Count on-time flights
-        on_time_dep = sum(1 for d in dep_delays if abs(d) < 15) if dep_delays else 0
-        on_time_arr = sum(1 for d in arr_delays if abs(d) < 15) if arr_delays else 0
+        # On-time = delay <= 0 (exactly on-time or early)
+        # Any positive delay (> 0) is considered late
+        on_time_dep = sum(1 for d in dep_delays if d <= 0) if dep_delays else 0
+        on_time_arr = sum(1 for d in arr_delays if d <= 0) if arr_delays else 0
         on_time_dep_pct = (on_time_dep / total_dep * 100) if total_dep > 0 else 0.0
         on_time_arr_pct = (on_time_arr / total_arr * 100) if total_arr > 0 else 0.0
         
