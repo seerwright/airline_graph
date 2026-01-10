@@ -66,9 +66,8 @@ networkx>=3.0  # Already in requirements.txt
 pandas>=2.0  # Already in requirements.txt
 numpy>=1.24  # Already in requirements.txt
 
-# Optional: For geographic maps (future enhancement)
-# folium>=0.14.0
-# streamlit-folium>=0.15.0
+# Interactive tables (sortable, filterable)
+streamlit-aggrid>=0.3.0
 ```
 
 ---
@@ -107,31 +106,41 @@ numpy>=1.24  # Already in requirements.txt
 
 ### 2. Network Graph Visualization (Main View)
 
-**Purpose**: Visualize the flight network topology and state
+**Purpose**: Visualize the flight network topology and state on a geographic map of the United States
 
-**Layout**: Interactive directed graph using Plotly
+**Layout**: Interactive geographic map overlay using Plotly Geo (`plotly.graph_objects.Scattergeo`)
+
+**Geographic Mapping**:
+- **Base Map**: United States map with state boundaries
+- **Airport Coordinates**: Airport nodes positioned at their actual geographic locations (latitude/longitude from `airports_sample.csv`)
+  - **ATL**: Atlanta, Georgia (Hartsfield-Jackson Atlanta International Airport)
+  - **LGA**: New York, New York (LaGuardia Airport)
+  - **SLC**: Salt Lake City, Utah (Salt Lake City International Airport)
+- **Projection**: Albers Equal Area Conic or Mercator projection suitable for continental US
 
 **Node Representation (Airports)**:
+- **Position**: Geographic coordinates (latitude/longitude) - NOT NetworkX layout
 - **Size**: Proportional to activity (total departures + arrivals) at current time
 - **Color**: Color-coded by delay status
   - Green: On-time (avg delay < 15 min)
   - Yellow: Moderate delays (15-30 min)
   - Red: Significant delays (> 30 min)
-- **Label**: Airport code (ATL, LGA, SLC)
-- **Position**: NetworkX layout (spring or force-directed)
+- **Label**: Airport code (ATL, LGA, SLC) with airport name
+- **Marker**: Circular markers, size varies with activity level
 - **Tooltip**: 
-  - Airport name
+  - Airport name and location
   - Current state metrics (departures, arrivals, delays, on-time %)
   - Total events count
 
-**Edge Representation (Flights)**:
+**Edge Representation (Flights/Routes)**:
+- **Lines**: Geodesic or great-circle routes between airports on the map
 - **Width**: Number of flights on route (at current time)
 - **Color**: 
   - Blue: Active flights (in the air at current time)
   - Gray: Completed flights (arrived before current time)
   - Orange: Scheduled flights (not yet departed)
   - Red: Delayed flights (delay > 15 min)
-- **Direction**: Directed arrows showing flight direction
+- **Direction**: Directed lines/arcs showing flight direction
 - **Opacity**: Fade completed flights, highlight active flights
 - **Tooltip**:
   - Route (origin → destination)
@@ -140,42 +149,60 @@ numpy>=1.24  # Already in requirements.txt
   - Flight IDs (list of active flights)
 
 **Interactive Features**:
-- Zoom and pan
+- Geographic zoom and pan (zoom to specific regions)
 - Click to select airport/flight for details
-- Hover for tooltips
+- Hover for tooltips with geographic and metric information
 - Toggle visibility (show/hide completed flights)
-- Animation: Edges appear/disappear as flights depart/arrive
+- Animation: Routes appear/disappear as flights depart/arrive
+- Map controls (zoom in/out, reset view, toggle state boundaries)
+
+**Data Requirements**:
+- Airport latitude/longitude coordinates must be added to `airports_sample.csv`:
+  - Columns: `latitude`, `longitude` (decimal degrees)
+  - Coordinates for ATL, LGA, SLC must be accurate for geographic positioning
 
 ---
 
-### 3. Airport Status Panel (Sidebar)
+### 3. Airport Status Table
 
-**Purpose**: Display current state metrics for each airport
+**Purpose**: Display current state metrics for all airports in a sortable and filterable table
 
-**Layout**: Side-by-side cards for each airport (ATL, LGA, SLC)
+**Layout**: Single interactive data table using `streamlit-aggrid`
 
-**For Each Airport Card**:
-- **Header**: Airport code and name
-- **Current State Metrics** (at selected time):
-  - Total Departures (cumulative count, large number)
-  - Total Arrivals (cumulative count, large number)
-  - Active Flights (flights in air, color-coded badge)
-  - Average Departure Delay (minutes, color-coded: green/yellow/red)
-  - Average Arrival Delay (minutes, color-coded: green/yellow/red)
-  - On-Time Departure % (percentage with progress bar)
-  - On-Time Arrival % (percentage with progress bar)
-  
-- **Mini Time-Series Charts** (below metrics):
-  - **Departures Over Time**: Step chart showing cumulative departures
-  - **Arrivals Over Time**: Step chart showing cumulative arrivals
-  - **Delay Trends**: Line chart showing average delay evolution
-  - All charts synchronized with main time slider
+**Table Component**: `streamlit-aggrid` (AgGrid component)
+- **Built-in Features**: Sortable columns, filterable rows, search functionality
+- **No Custom Code Required**: All functionality provided out-of-the-box
+- **Performance**: Optimized for large datasets (efficient rendering)
+
+**Table Structure**:
+- **Rows**: One row per airport (ATL, LGA, SLC)
+- **Columns** (at selected time):
+  - **Airport**: Airport code (ATL, LGA, SLC)
+  - **Airport Name**: Full airport name
+  - **Departures**: Total departures (cumulative count, integer)
+  - **Arrivals**: Total arrivals (cumulative count, integer)
+  - **Active Flights**: Flights currently in the air (integer)
+  - **Avg Dep Delay**: Average departure delay (minutes, float, 1 decimal)
+  - **Avg Arr Delay**: Average arrival delay (minutes, float, 1 decimal)
+  - **On-Time Dep %**: On-time departure percentage (float, 1 decimal)
+  - **On-Time Arr %**: On-time arrival percentage (float, 1 decimal)
+
+**Table Features**:
+- **Sorting**: Click column headers to sort ascending/descending
+- **Filtering**: Filter rows by any column value
+- **Search**: Search across all columns
+- **Color-Coding**: Color-code cells based on values (green=good, yellow=moderate, red=poor)
+  - Delay columns: Green < 15 min, Yellow 15-30 min, Red > 30 min
+  - On-Time % columns: Green ≥ 95%, Yellow 80-95%, Red < 80%
+- **Auto-Update**: Table updates when time slider changes
+- **Export**: Export filtered/sorted data to CSV (built-in AgGrid feature)
 
 **Visual Design**:
-- Color-coded metrics (green=good, yellow=moderate, red=poor)
-- Progress bars for percentages
-- Compact, scannable layout
-- Expandable cards for detailed view
+- Clean, professional table layout
+- Alternating row colors for readability
+- Header row with sort indicators
+- Compact, scannable format
+- Responsive width (uses container width)
 
 ---
 
@@ -185,23 +212,48 @@ numpy>=1.24  # Already in requirements.txt
 
 #### A. Flight Volume Timeline
 
-**Chart Type**: Line Chart (Plotly)
+**Chart Type**: Multi-Line Chart (Plotly)
 
 **X-Axis**: Time (GMT, from first departure to last arrival)
 
-**Y-Axis**: Cumulative Flight Count
+**Y-Axis**: 
+- Left Y-Axis: Count (for flights enroute)
+- Right Y-Axis: Total Delay Minutes (for cumulative delays)
 
-**Lines**:
-- Blue line: Total Departures (cumulative)
-- Orange line: Total Arrivals (cumulative)
-- Green line: Total Flights (departures + arrivals)
-- Vertical markers: Individual departure/arrival events
+**Lines** (All metrics shown simultaneously):
+1. **Flights Enroute** (Blue line, left Y-axis)
+   - Number of flights currently in the air at each point in time
+   - Real-time count of active flights
+   - Peaks when multiple flights are airborne simultaneously
 
-**Features**:
-- Hover tooltip shows exact counts at any time
-- Vertical line indicator for current time (synced with slider)
-- Click to jump to specific time
-- Zoom and pan
+2. **Cumulative Outbound Delay** (Red line, right Y-axis)
+   - Total minutes of departure delay accumulated up to that point in time
+   - Sum of `departure_delay_minutes` for all flights that have departed by that time
+   - Monotonically increasing (never decreases)
+   - Shows cumulative impact of departure delays
+
+3. **Cumulative Inbound Delay** (Orange line, right Y-axis)
+   - Total minutes of arrival delay accumulated up to that point in time
+   - Sum of `arrival_delay_minutes` for all flights that have arrived by that time
+   - Monotonically increasing (never decreases)
+   - Shows cumulative impact of arrival delays
+
+**Chart Features**:
+- **Dual Y-Axes**: Left axis for count (flights enroute), right axis for delay minutes (cumulative delays)
+- **Hover Tooltips**: Show exact values for all metrics at any time
+- **Vertical Line Indicator**: Red dashed line showing current time position (synced with slider)
+- **Legend**: Clickable legend to show/hide individual lines
+- **Zoom and Pan**: Interactive chart navigation
+- **Time Navigation**: Click on chart to jump to specific time (optional)
+- **Color-Coded Lines**: 
+  - Blue: Flights enroute
+  - Red: Cumulative outbound delay
+  - Orange: Cumulative inbound delay
+
+**Data Calculation**:
+- **Flights Enroute**: Count flights where `departure_time <= current_time < arrival_time`
+- **Cumulative Outbound Delay**: Sum of `departure_delay_minutes` for all flights where `departure_time <= current_time`
+- **Cumulative Inbound Delay**: Sum of `arrival_delay_minutes` for all flights where `arrival_time <= current_time`
 
 ---
 
@@ -340,38 +392,56 @@ numpy>=1.24  # Already in requirements.txt
 
 ### 6. Event Timeline Panel (Bottom Section)
 
-**Purpose**: Chronological log of all events
+**Purpose**: Chronological log of all departure and arrival events
 
-#### A. Event Log Stream
+#### A. Event Log Table
 
-**Chart Type**: Scrollable Timeline/Log View (Streamlit)
+**Chart Type**: Interactive Data Table using `streamlit-aggrid`
 
-**Layout**: Chronological list of events
+**Layout**: Sortable and filterable table of all events (departures AND arrivals)
 
-**Columns**:
-- Timestamp (HH:MM:SS GMT)
-- Event Type (Departure/Arrival badge)
-- Airport (ATL/LGA/SLC)
-- Flight ID (e.g., WN1234_2026-01-01_ATL_LGA)
-- Delay (minutes, color-coded)
-- Status (On-Time/Delayed/Early)
+**Table Component**: Same `streamlit-aggrid` component as Airport Status table
+- **Built-in Features**: Sortable columns, filterable rows, search functionality
+- **No Custom Code Required**: All functionality provided out-of-the-box
 
-**Features**:
-- Auto-scroll to current time (optional)
-- Filterable by:
-  - Airport (multi-select)
-  - Event type (departure/arrival)
-  - Delay threshold (slider)
-  - Time range
-- Search by flight ID
-- Highlight current event (bold/color)
-- Click event to jump to that time
+**Table Structure**:
+- **Rows**: One row per event (departure or arrival)
+- **Columns**:
+  - **Timestamp**: Full timestamp (YYYY-MM-DD HH:MM:SS GMT)
+  - **Time**: Time portion (HH:MM:SS GMT) for quick reference
+  - **Event Type**: Departure or Arrival (text badge)
+  - **Airport**: Airport code (ATL, LGA, SLC)
+  - **Flight ID**: Flight identifier (e.g., WN1234_2026-01-01_ATL_LGA)
+  - **Route**: Origin → Destination (e.g., ATL → LGA)
+  - **Delay**: Delay in minutes (departure delay for departures, arrival delay for arrivals)
+  - **Status**: On-Time, Delayed, or Early (based on delay threshold, typically ±15 minutes)
+
+**Table Features**:
+- **Sorting**: Click column headers to sort by any column (timestamp, airport, delay, etc.)
+- **Filtering**: Filter rows by:
+  - **Event Type**: Filter to show only departures, only arrivals, or both
+  - **Airport**: Filter by airport code (ATL, LGA, SLC)
+  - **Delay**: Filter by delay threshold (e.g., delays > 15 minutes)
+  - **Time Range**: Filter by timestamp range
+  - **Flight ID**: Search by flight identifier
+- **Search**: Global search across all columns
+- **Color-Coding**: Color-code rows based on status
+  - Green: On-time (delay within ±15 minutes)
+  - Yellow: Moderate delays (15-30 minutes)
+  - Red: Significant delays (> 30 minutes)
+  - Blue: Early (negative delay, arrived/departed ahead of schedule)
+- **Time Window**: Default shows events in ±30 minute window around current time
+- **Auto-Update**: Table updates when time slider changes (updates time window)
+- **Highlight Current Time**: Optionally highlight events at current time
+- **Export**: Export filtered/sorted data to CSV (built-in AgGrid feature)
 
 **Visual Design**:
-- Color-coded rows (green=on-time, red=delayed)
-- Icons for departure (✈️) and arrival (🛬)
+- Chronological order (sorted by timestamp by default)
+- Color-coded rows for quick status identification
 - Compact, scannable format
-- Expandable rows for detailed event information
+- Alternating row colors for readability
+- Icons or badges for event type (optional visual enhancement)
+- Responsive width (uses container width)
 
 ---
 
@@ -668,9 +738,9 @@ streamlit run scripts/dashboard.py
 - Event type filter (departure/arrival/both)
 
 **View Options**:
-- Show/hide completed flights
-- Show/hide delayed flights only
-- Network layout selector (spring, circular, force-directed)
+- Show/hide completed flights (on map)
+- Show/hide delayed flights only (on map)
+- Map projection selector (Albers, Mercator, etc.)
 - Chart style selector (theme)
 - Refresh data button
 
@@ -699,25 +769,42 @@ streamlit run scripts/dashboard.py
    - Uses: Edge temporal attributes (arrival <= target_time)
 
 4. **`get_events_in_time_range(G, start_time, end_time)`**
-   - Returns: All departure/arrival events in time range
-   - Uses: Event-level snapshots (filtered by timestamp)
+   - Returns: All departure AND arrival events in time range
+   - Uses: Event-level snapshots (filtered by timestamp and event_type)
+   - Includes: Both departure and arrival events (must include both types)
+   - Returns: List of events with timestamp, event_type, airport, flight_id, delay info
 
-5. **`get_delay_metrics_over_time(G, start_time, end_time, interval_minutes)`**
-   - Returns: Time series of delay metrics (average delays at intervals)
-   - Uses: Event-level snapshots aggregated at intervals
+5. **`get_flights_enroute_over_time(G, start_time, end_time, interval_minutes)`**
+   - Returns: Time series of flights enroute count at each interval
+   - Uses: Edge temporal attributes (count flights where departure <= time < arrival)
+   - Returns: DataFrame with time and enroute_count columns
 
-6. **`get_route_metrics_at_time(G, target_time)`**
+6. **`get_cumulative_delay_over_time(G, start_time, end_time, interval_minutes, delay_type='departure')`**
+   - Returns: Time series of cumulative delay minutes (total, not average)
+   - Parameters:
+     - `delay_type='departure'`: Sum of departure_delay_minutes for departed flights
+     - `delay_type='arrival'`: Sum of arrival_delay_minutes for arrived flights
+   - Uses: Edge attributes (sum of delay_minutes for completed flights up to each time)
+   - Returns: DataFrame with time and cumulative_delay_minutes columns
+   - Note: Values are monotonically increasing (cumulative sum)
+
+7. **`get_route_metrics_at_time(G, target_time)`**
    - Returns: Route performance metrics (volume, delays) at target time
    - Uses: Edge attributes filtered by time
 
-7. **`get_network_metrics_at_time(G, target_time)`**
+8. **`get_network_metrics_at_time(G, target_time)`**
    - Returns: Network-wide KPIs (totals, averages) at target time
    - Uses: Aggregated from all airports and routes
 
-8. **`extract_time_series_data(G, start_time, end_time, metric_type, interval_minutes)`**
-   - Returns: Time series DataFrame for plotting
-   - Uses: Aggregated data at regular intervals
-   - Supports: departures, arrivals, delays, on-time %, active flights, etc.
+9. **`get_airport_coordinates(G)`**
+   - Returns: Dictionary mapping airport codes to (latitude, longitude) tuples
+   - Uses: Airport node attributes (latitude/longitude from airports_sample.csv)
+   - Returns: `{airport_code: (lat, lon), ...}` for geographic mapping
+
+10. **`extract_time_series_data(G, start_time, end_time, metric_type, interval_minutes)`**
+    - Returns: Time series DataFrame for plotting
+    - Uses: Aggregated data at regular intervals
+    - Supports: flights_enroute, cumulative_outbound_delay, cumulative_inbound_delay, etc.
 
 ---
 
@@ -885,7 +972,36 @@ streamlit run scripts/dashboard.py
 
 ## Notes
 
+### Updated Requirements (Confirmed)
+
+**Geographic Mapping**:
+- Network graph overlaid on US map with airports positioned at actual geographic coordinates
+- Airport coordinates (latitude/longitude) must be added to `airports_sample.csv`
+- Use Plotly Geo (`Scattergeo`) for map visualization
+
+**Airport Status**:
+- Changed from individual cards to single sortable/filterable table
+- Use `streamlit-aggrid` component (no custom code required)
+- Table shows all airports as rows with metrics as columns
+
+**Flight Volume Timeline**:
+- **Replaced** previous metrics with new ones:
+  - Flights enroute (count at each point in time)
+  - Cumulative inbound delay (total minutes, not average)
+  - Cumulative outbound delay (total minutes, not average)
+- Dual Y-axes: Left for count, right for delay minutes
+
+**Event Timeline**:
+- Must show **both** departures AND arrivals (not just arrivals)
+- Use same `streamlit-aggrid` component as Airport Status table
+- Sortable and filterable by all columns
+- Filterable by event type (departure/arrival/both)
+
+### Implementation Notes
+
 - This feature document will be updated as the dashboard is implemented
 - Visualization specifications may be refined based on initial testing
 - Additional visualizations may be added based on user feedback
 - Performance optimizations will be applied as data volume grows
+- Airport coordinates must be accurate for proper geographic positioning
+- Cumulative delays are monotonically increasing (never decrease)

@@ -1,4 +1,4 @@
-airport_code,airport_name,city,state,country
-ATL,Hartsfield-Jackson Atlanta International Airport,Atlanta,GA,USA
-LGA,LaGuardia Airport,New York,NY,USA
-SLC,Salt Lake City International Airport,Salt Lake City,UT,USA
+airport_code,airport_name,city,state,country,latitude,longitude
+ATL,Hartsfield-Jackson Atlanta International Airport,Atlanta,GA,USA,33.6407,-84.4277
+LGA,LaGuardia Airport,New York,NY,USA,40.7769,-73.8740
+SLC,Salt Lake City International Airport,Salt Lake City,UT,USA,40.7899,-111.9791

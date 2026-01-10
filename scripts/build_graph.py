@@ -47,12 +47,25 @@ def create_airport_nodes(G: nx.MultiDiGraph, airports: Dict[str, Dict]) -> None:
     for airport_code, airport_data in airports.items():
         # Create node with core attributes
         # For now, we'll add basic attributes and can aggregate metrics later
+        # Parse latitude/longitude if available
+        latitude = airport_data.get('latitude')
+        longitude = airport_data.get('longitude')
+        if latitude and longitude:
+            try:
+                latitude = float(latitude)
+                longitude = float(longitude)
+            except (ValueError, TypeError):
+                latitude = None
+                longitude = None
+        
         node_attributes = {
             'airport_code': airport_code,
             'airport_name': airport_data.get('airport_name', ''),
             'city': airport_data.get('city', ''),
             'state': airport_data.get('state', ''),
             'country': airport_data.get('country', ''),
+            'latitude': latitude,
+            'longitude': longitude,
             'last_updated': datetime.now(timezone.utc).isoformat(),  # ISO 8601 string for JSON
             # Event-level snapshots will be added later when we process flights chronologically
             'time_snapshots': []

@@ -26,6 +26,7 @@ try:
     import networkx as nx
     import pandas as pd
     import numpy as np
+    from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 except ImportError as e:
     print(f"❌ Error importing required modules: {e}")
     print("\nPlease make sure you have:")
@@ -127,6 +128,97 @@ def get_completed_flights_up_to_time(G: nx.MultiDiGraph, target_time: datetime) 
     return completed_flights
 
 
+def get_flights_enroute_over_time(G: nx.MultiDiGraph, start_time: datetime, end_time: datetime, interval_minutes: int = 1) -> pd.DataFrame:
+    """Get time series of flights enroute count at regular intervals."""
+    times = []
+    enroute_counts = []
+    
+    current_time = start_time
+    while current_time <= end_time:
+        active_flights = get_active_flights_at_time(G, current_time)
+        enroute_counts.append(len(active_flights))
+        times.append(current_time)
+        current_time += timedelta(minutes=interval_minutes)
+    
+    return pd.DataFrame({
+        'time': times,
+        'flights_enroute': enroute_counts
+    })
+
+
+def get_cumulative_delay_over_time(G: nx.MultiDiGraph, start_time: datetime, end_time: datetime, interval_minutes: int = 1, delay_type: str = 'departure') -> pd.DataFrame:
+    """Get time series of cumulative delay minutes (total, not average).
+    
+    Args:
+        delay_type: 'departure' for departure delays, 'arrival' for arrival delays
+    """
+    times = []
+    cumulative_delays = []
+    
+    # Pre-compute all flights with their delays and times
+    flights_data = []
+    for origin, destination, key, data in G.edges(data=True, keys=True):
+        if delay_type == 'departure':
+            time_str = data.get('actual_departure_gate') or data.get('scheduled_departure_gate')
+            delay = data.get('departure_delay_minutes', 0) or 0
+        else:  # arrival
+            time_str = data.get('actual_arrival_gate') or data.get('scheduled_arrival_gate')
+            delay = data.get('arrival_delay_minutes', 0) or 0
+        
+        if time_str:
+            flight_time = parse_iso8601_datetime(time_str)
+            if flight_time and delay is not None:
+                try:
+                    delay_float = float(delay)
+                    flights_data.append({
+                        'time': flight_time,
+                        'delay': delay_float
+                    })
+                except (ValueError, TypeError):
+                    pass
+    
+    # Sort by time
+    flights_data.sort(key=lambda x: x['time'])
+    
+    # Build cumulative sum
+    current_time = start_time
+    cumulative_delay = 0.0
+    flight_idx = 0
+    
+    while current_time <= end_time:
+        # Add delays for flights that have completed by current_time
+        while flight_idx < len(flights_data) and flights_data[flight_idx]['time'] <= current_time:
+            cumulative_delay += flights_data[flight_idx]['delay']
+            flight_idx += 1
+        
+        times.append(current_time)
+        cumulative_delays.append(cumulative_delay)
+        current_time += timedelta(minutes=interval_minutes)
+    
+    # Use different column names based on delay type
+    column_name = 'cumulative_outbound_delay' if delay_type == 'departure' else 'cumulative_inbound_delay'
+    
+    return pd.DataFrame({
+        'time': times,
+        column_name: cumulative_delays
+    })
+
+
+def get_airport_coordinates(G: nx.MultiDiGraph) -> Dict[str, Tuple[float, float]]:
+    """Get dictionary mapping airport codes to (latitude, longitude) tuples."""
+    coords = {}
+    for airport_code in G.nodes():
+        node_data = G.nodes[airport_code]
+        lat = node_data.get('latitude')
+        lon = node_data.get('longitude')
+        if lat is not None and lon is not None:
+            try:
+                coords[airport_code] = (float(lat), float(lon))
+            except (ValueError, TypeError):
+                pass
+    return coords
+
+
 def get_flight_volume_timeline(G: nx.MultiDiGraph, start_time: datetime, end_time: datetime, interval_minutes: int = 1) -> pd.DataFrame:
     """Extract flight volume data at regular intervals for timeline chart.
     
@@ -200,136 +292,207 @@ def get_flight_volume_timeline(G: nx.MultiDiGraph, start_time: datetime, end_tim
 # ============================================================================
 
 def create_network_graph(G: nx.MultiDiGraph, current_time: datetime) -> go.Figure:
-    """Create interactive network graph visualization at current time."""
+    """Create interactive geographic map visualization with airports and flight routes at current time."""
+    # Get airport coordinates
+    airport_coords = get_airport_coordinates(G)
+    
+    if not airport_coords:
+        # Fallback to basic graph if no coordinates available
+        st.warning("⚠️ No airport coordinates found. Please add latitude/longitude to airports_sample.csv")
+        return create_fallback_graph(G, current_time)
+    
     # Get active flights at current time
     active_flights = get_active_flights_at_time(G, current_time)
-    completed_flights = get_completed_flights_up_to_time(G, current_time)
     
-    # Create layout using NetworkX spring layout
-    pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
+    # Prepare airport data for map
+    airport_lats = []
+    airport_lons = []
+    airport_codes = []
+    airport_text = []
+    airport_sizes = []
+    airport_colors = []
     
-    # Extract node and edge positions
-    node_x = []
-    node_y = []
-    node_text = []
-    node_size = []
-    node_color = []
-    
-    for node in G.nodes():
-        x, y = pos[node]
-        node_x.append(x)
-        node_y.append(y)
-        
-        # Get airport state at current time
-        state = get_airport_state_at_time(G, node, current_time)
-        if state:
-            activity = state['total_departures'] + state['total_arrivals']
-            avg_delay = (state.get('avg_departure_delay', 0) + state.get('avg_arrival_delay', 0)) / 2
+    for airport_code in sorted(G.nodes()):
+        if airport_code in airport_coords:
+            lat, lon = airport_coords[airport_code]
+            airport_lats.append(lat)
+            airport_lons.append(lon)
+            airport_codes.append(airport_code)
             
-            node_size.append(max(20, activity * 5))  # Scale by activity
-            node_text.append(f"{node}<br>Departures: {state['total_departures']}<br>Arrivals: {state['total_arrivals']}<br>Avg Delay: {avg_delay:.1f} min")
+            # Get airport state at current time
+            state = get_airport_state_at_time(G, airport_code, current_time)
+            node_data = G.nodes[airport_code]
+            airport_name = node_data.get('airport_name', airport_code)
             
-            # Color by delay status
-            if avg_delay < 15:
-                node_color.append('green')
-            elif avg_delay < 30:
-                node_color.append('orange')
+            if state:
+                activity = state['total_departures'] + state['total_arrivals']
+                avg_delay = (state.get('avg_departure_delay', 0) + state.get('avg_arrival_delay', 0)) / 2
+                
+                # Size based on activity
+                size = max(10, min(50, activity * 3))
+                airport_sizes.append(size)
+                
+                # Tooltip text
+                text = f"{airport_code} - {airport_name}<br>Departures: {state['total_departures']}<br>Arrivals: {state['total_arrivals']}<br>Avg Delay: {avg_delay:.1f} min<br>Active Flights: {sum(1 for f in active_flights if f['origin'] == airport_code)}"
+                airport_text.append(text)
+                
+                # Color by delay status
+                if avg_delay < 15:
+                    airport_colors.append('green')
+                elif avg_delay < 30:
+                    airport_colors.append('orange')
+                else:
+                    airport_colors.append('red')
             else:
-                node_color.append('red')
-        else:
-            node_size.append(20)
-            node_text.append(f"{node}<br>No activity yet")
-            node_color.append('gray')
+                airport_sizes.append(10)
+                airport_text.append(f"{airport_code} - {airport_name}<br>No activity yet")
+                airport_colors.append('gray')
     
-    # Extract edge positions
-    edge_x = []
-    edge_y = []
-    edge_info = []
+    # Create airport scattergeo trace
+    airport_trace = go.Scattergeo(
+        lat=airport_lats,
+        lon=airport_lons,
+        mode='markers+text',
+        text=airport_codes,
+        textposition="middle center",
+        textfont=dict(size=12, color="white", family="Arial Black"),
+        hovertext=airport_text,
+        hoverinfo='text',
+        marker=dict(
+            size=airport_sizes,
+            color=airport_colors,
+            line=dict(width=2, color='black'),
+            opacity=0.8
+        ),
+        name='Airports'
+    )
     
-    # Group edges by route to show thickness by volume
-    route_flights = {}
+    # Prepare flight route data
+    route_data = {}
     for origin, destination, key, data in G.edges(data=True, keys=True):
         route = (origin, destination)
-        if route not in route_flights:
-            route_flights[route] = []
-        route_flights[route].append({
-            'key': key,
-            'data': data,
-            'dep': parse_iso8601_datetime(data.get('actual_departure_gate') or data.get('scheduled_departure_gate')),
-            'arr': parse_iso8601_datetime(data.get('actual_arrival_gate') or data.get('scheduled_arrival_gate')),
-        })
+        if route not in route_data:
+            route_data[route] = []
+        
+        dep_time = parse_iso8601_datetime(data.get('actual_departure_gate') or data.get('scheduled_departure_gate'))
+        arr_time = parse_iso8601_datetime(data.get('actual_arrival_gate') or data.get('scheduled_arrival_gate'))
+        
+        if dep_time and arr_time:
+            route_data[route].append({
+                'dep': dep_time,
+                'arr': arr_time,
+                'delay': data.get('departure_delay_minutes', 0) or 0
+            })
     
-    for (origin, destination), flights in route_flights.items():
+    # Create route traces (lines between airports)
+    route_traces = []
+    for (origin, dest), flights in route_data.items():
+        if origin not in airport_coords or dest not in airport_coords:
+            continue
+        
         # Count active flights on this route
-        active_count = sum(1 for f in flights if f['dep'] and f['arr'] and f['dep'] <= current_time < f['arr'])
-        completed_count = sum(1 for f in flights if f['arr'] and f['arr'] <= current_time)
+        active_count = sum(1 for f in flights if f['dep'] <= current_time < f['arr'])
+        completed_count = sum(1 for f in flights if f['arr'] <= current_time)
         
         if active_count > 0 or completed_count > 0:
-            x0, y0 = pos[origin]
-            x1, y1 = pos[destination]
+            origin_lat, origin_lon = airport_coords[origin]
+            dest_lat, dest_lon = airport_coords[dest]
             
-            edge_x.extend([x0, x1, None])
-            edge_y.extend([y0, y1, None])
+            # Determine color based on status
+            if active_count > 0:
+                line_color = 'blue'  # Active flights
+                opacity = 0.7
+                width = max(2, min(8, active_count))
+            elif completed_count > 0:
+                line_color = 'gray'  # Completed flights
+                opacity = 0.3
+                width = 2
+            else:
+                continue
             
-            # Route info
-            total_flights = len(flights)
-            route_info = f"{origin} → {destination}<br>Total: {total_flights}<br>Active: {active_count}<br>Completed: {completed_count}"
-            edge_info.append(route_info)
+            # Create great circle route (geodesic line)
+            route_trace = go.Scattergeo(
+                lat=[origin_lat, dest_lat],
+                lon=[origin_lon, dest_lon],
+                mode='lines',
+                line=dict(width=width, color=line_color),
+                opacity=opacity,
+                hoverinfo='skip',
+                showlegend=False
+            )
+            route_traces.append(route_trace)
     
-    # Create edge trace
-    edge_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        line=dict(width=2, color='#888'),
-        hoverinfo='none',
-        mode='lines'
+    # Create figure with geographic projection
+    fig = go.Figure()
+    
+    # Add route traces first (so airports appear on top)
+    for trace in route_traces:
+        fig.add_trace(trace)
+    
+    # Add airport trace
+    fig.add_trace(airport_trace)
+    
+    # Update layout for US map
+    fig.update_geos(
+        scope='usa',
+        projection_type='albers usa',
+        showland=True,
+        landcolor='rgb(243, 243, 243)',
+        showocean=True,
+        oceancolor='rgb(230, 245, 255)',
+        showlakes=True,
+        lakecolor='rgb(230, 245, 255)',
+        showrivers=True,
+        rivercolor='rgb(230, 245, 255)',
+        lonaxis_range=[-130, -65],
+        lataxis_range=[24, 50],
+        resolution=110
     )
     
-    # Create node trace
-    node_trace = go.Scatter(
-        x=node_x, y=node_y,
-        mode='markers+text',
-        hoverinfo='text',
-        text=[node for node in G.nodes()],
-        textposition="middle center",
-        textfont=dict(size=14, color="white", family="Arial Black"),
-        hovertext=node_text,
-        marker=dict(
-            showscale=False,
-            size=node_size,
-            color=node_color,
-            line=dict(width=2, color='black')
-        )
+    fig.update_layout(
+        title=dict(
+            text=f"Network Map at {current_time.strftime('%Y-%m-%d %H:%M:%S')} UTC",
+            x=0.5,
+            xanchor='center',
+            font=dict(size=16)
+        ),
+        height=600,
+        margin=dict(l=0, r=0, t=40, b=0),
+        annotations=[
+            dict(
+                text="Node size = Activity | Color = Delay status (Green: On-time, Orange: Moderate, Red: Delayed) | Blue lines = Active flights",
+                showarrow=False,
+                xref="paper", yref="paper",
+                x=0.005, y=-0.002,
+                xanchor="left", yanchor="bottom",
+                font=dict(size=10, color="#888")
+            )
+        ]
     )
     
-    # Create figure
+    return fig
+
+
+def create_fallback_graph(G: nx.MultiDiGraph, current_time: datetime) -> go.Figure:
+    """Fallback network graph when coordinates are not available."""
+    pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
+    node_x = [pos[n][0] for n in G.nodes()]
+    node_y = [pos[n][1] for n in G.nodes()]
+    
     fig = go.Figure(
-        data=[edge_trace, node_trace],
+        data=[go.Scatter(
+            x=node_x, y=node_y,
+            mode='markers+text',
+            text=list(G.nodes()),
+            textposition="middle center",
+            marker=dict(size=20, color='blue')
+        )],
         layout=go.Layout(
-            title=dict(
-                text=f"Network Graph at {current_time.strftime('%Y-%m-%d %H:%M:%S')} UTC",
-                x=0.5,
-                xanchor='center',
-                font=dict(size=16)
-            ),
+            title=f"Network Graph at {current_time.strftime('%Y-%m-%d %H:%M:%S')} UTC",
             showlegend=False,
-            hovermode='closest',
-            margin=dict(b=20, l=5, r=5, t=40),
-            annotations=[
-                dict(
-                    text="Node size = Activity level | Color = Delay status (Green: On-time, Orange: Moderate, Red: Delayed)",
-                    showarrow=False,
-                    xref="paper", yref="paper",
-                    x=0.005, y=-0.002,
-                    xanchor="left", yanchor="bottom",
-                    font=dict(size=10, color="#888")
-                )
-            ],
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
             height=600
         )
     )
-    
     return fig
 
 
@@ -369,59 +532,119 @@ def create_airport_status_panel(G: nx.MultiDiGraph, airport_code: str, current_t
 
 
 def create_flight_volume_chart(df: pd.DataFrame, current_time: datetime) -> go.Figure:
-    """Create flight volume timeline chart."""
+    """Create flight volume timeline chart with flights enroute and cumulative delays.
+    
+    Chart shows:
+    - Flights enroute (count, left Y-axis)
+    - Cumulative outbound delay (total minutes, right Y-axis)
+    - Cumulative inbound delay (total minutes, right Y-axis)
+    """
     fig = go.Figure()
     
+    # Validate DataFrame
+    if df.empty or 'time' not in df.columns:
+        st.warning("No data available for flight volume timeline chart")
+        return fig
+    
     # Ensure time column is datetime type
-    if not pd.api.types.is_datetime64_any_dtype(df['time']):
-        df['time'] = pd.to_datetime(df['time'])
+    try:
+        if not pd.api.types.is_datetime64_any_dtype(df['time']):
+            df['time'] = pd.to_datetime(df['time'])
+    except Exception as e:
+        st.error(f"Error converting time column: {e}")
+        return fig
     
-    # Add departure line
-    fig.add_trace(go.Scatter(
-        x=df['time'],
-        y=df['departures'],
-        mode='lines+markers',
-        name='Departures',
-        line=dict(color='blue', width=2),
-        marker=dict(size=4)
-    ))
+    # Fill NaN values with 0 for safety
+    df = df.fillna(0)
     
-    # Add arrival line
-    fig.add_trace(go.Scatter(
-        x=df['time'],
-        y=df['arrivals'],
-        mode='lines+markers',
-        name='Arrivals',
-        line=dict(color='orange', width=2),
-        marker=dict(size=4)
-    ))
+    # Calculate max values safely
+    y_max_left = 1.0
+    y_max_right = 1.0
     
-    # Add total line
-    fig.add_trace(go.Scatter(
-        x=df['time'],
-        y=df['total_flights'],
-        mode='lines',
-        name='Total Flights',
-        line=dict(color='green', width=2, dash='dash')
-    ))
+    # Add flights enroute line (left Y-axis)
+    if 'flights_enroute' in df.columns and len(df) > 0:
+        enroute_values = pd.to_numeric(df['flights_enroute'], errors='coerce').fillna(0)
+        # Always add trace, even if values are zero (shows tracking)
+        fig.add_trace(go.Scatter(
+            x=df['time'],
+            y=enroute_values,
+            mode='lines+markers',
+            name='Flights Enroute',
+            line=dict(color='blue', width=2),
+            marker=dict(size=4),
+            yaxis='y'
+        ))
+        # Calculate max safely
+        try:
+            y_max_left = max(float(enroute_values.max()), 1.0)
+        except (ValueError, TypeError):
+            y_max_left = 1.0
     
-    # Add vertical line for current time using add_shape (more reliable with datetime)
-    # Get y-axis range for the line
-    y_max = max(df['total_flights'].max() if len(df) > 0 else 1, 1)
+    # Add cumulative outbound delay line (right Y-axis)
+    if 'cumulative_outbound_delay' in df.columns and len(df) > 0:
+        outbound_values = pd.to_numeric(df['cumulative_outbound_delay'], errors='coerce').fillna(0)
+        # Always add trace (cumulative delays should be tracked even if zero initially)
+        fig.add_trace(go.Scatter(
+            x=df['time'],
+            y=outbound_values,
+            mode='lines+markers',
+            name='Cumulative Outbound Delay',
+            line=dict(color='red', width=2),
+            marker=dict(size=4),
+            yaxis='y2'
+        ))
+        # Calculate max safely
+        try:
+            y_max_right = max(y_max_right, float(outbound_values.max()), 1.0)
+        except (ValueError, TypeError):
+            y_max_right = max(y_max_right, 1.0)
+    
+    # Add cumulative inbound delay line (right Y-axis)
+    if 'cumulative_inbound_delay' in df.columns and len(df) > 0:
+        inbound_values = pd.to_numeric(df['cumulative_inbound_delay'], errors='coerce').fillna(0)
+        # Always add trace (cumulative delays should be tracked even if zero initially)
+        fig.add_trace(go.Scatter(
+            x=df['time'],
+            y=inbound_values,
+            mode='lines+markers',
+            name='Cumulative Inbound Delay',
+            line=dict(color='orange', width=2),
+            marker=dict(size=4),
+            yaxis='y2'
+        ))
+        # Calculate max safely
+        try:
+            y_max_right = max(y_max_right, float(inbound_values.max()), 1.0)
+        except (ValueError, TypeError):
+            y_max_right = max(y_max_right, 1.0)
+    
+    # Ensure we have at least one trace
+    if len(fig.data) == 0:
+        # Add a dummy trace if no data
+        fig.add_trace(go.Scatter(
+            x=[current_time],
+            y=[0],
+            mode='markers',
+            name='No Data',
+            marker=dict(size=1, opacity=0)
+        ))
+    
+    # Add vertical line for current time (use appropriate y-axis range)
+    y_max_for_line = max(y_max_left, y_max_right, 10.0)  # Ensure minimum range
     
     fig.add_shape(
         type="line",
         x0=current_time,
         x1=current_time,
         y0=0,
-        y1=y_max,
+        y1=y_max_for_line,
         line=dict(color="red", width=2, dash="dash"),
     )
     
     # Add annotation for current time
     fig.add_annotation(
         x=current_time,
-        y=y_max * 0.95,
+        y=y_max_for_line * 0.95,
         text=f"Current: {current_time.strftime('%H:%M:%S')}",
         showarrow=False,
         bgcolor="rgba(255,255,255,0.8)",
@@ -430,14 +653,56 @@ def create_flight_volume_chart(df: pd.DataFrame, current_time: datetime) -> go.F
         font=dict(size=10, color="red")
     )
     
-    fig.update_layout(
-        title="Flight Volume Timeline",
-        xaxis_title="Time (GMT)",
-        yaxis_title="Cumulative Flight Count",
-        hovermode='x unified',
-        height=400,
-        legend=dict(x=0, y=1, traceorder="normal")
+    # Update layout with dual Y-axes
+    # Check if we have delay traces by checking if delay columns exist in DataFrame
+    # (We add traces for these columns if they exist, so if columns exist, traces exist)
+    has_delay_traces = (
+        'cumulative_outbound_delay' in df.columns or 
+        'cumulative_inbound_delay' in df.columns
     )
+    
+    # Build layout using explicit parameter passing
+    try:
+        if has_delay_traces:
+            # Dual Y-axis layout
+            fig.update_layout(
+                title="Flight Volume Timeline",
+                xaxis_title="Time (GMT)",
+                yaxis=dict(
+                    title=dict(text="Flights Enroute (Count)", font=dict(color='blue')),
+                    side='left',
+                    tickfont=dict(color='blue')
+                ),
+                yaxis2=dict(
+                    title=dict(text="Cumulative Delay (Minutes)", font=dict(color='red')),
+                    side='right',
+                    overlaying='y',
+                    tickfont=dict(color='red')
+                ),
+                hovermode='x unified',
+                height=400,
+                legend=dict(x=0, y=1, traceorder='normal')
+            )
+        else:
+            # Single Y-axis layout
+            fig.update_layout(
+                title="Flight Volume Timeline",
+                xaxis_title="Time (GMT)",
+                yaxis=dict(
+                    title=dict(text="Flights Enroute (Count)", font=dict(color='blue')),
+                    tickfont=dict(color='blue')
+                ),
+                hovermode='x unified',
+                height=400,
+                legend=dict(x=0, y=1, traceorder='normal')
+            )
+    except Exception as e:
+        # Fallback to minimal layout if there's an error
+        st.error(f"Error configuring chart layout: {e}")
+        fig.update_layout(
+            title="Flight Volume Timeline",
+            height=400
+        )
     
     return fig
 
@@ -536,66 +801,230 @@ def main():
         network_fig = create_network_graph(G, current_time)
         st.plotly_chart(network_fig, use_container_width=True)
     
-    # Airport Status Panels
+    # Airport Status Table
     st.header("📍 Airport Status")
     
     airports = sorted(G.nodes())
-    airport_cols = st.columns(len(airports))
     
-    for idx, airport_code in enumerate(airports):
-        with airport_cols[idx]:
-            status = create_airport_status_panel(G, airport_code, current_time)
-            
-            st.subheader(f"{airport_code} - {status['airport_name']}")
-            
-            col_dep, col_arr = st.columns(2)
-            with col_dep:
-                st.metric("Departures", status['total_departures'])
-            with col_arr:
-                st.metric("Arrivals", status['total_arrivals'])
-            
-            st.metric("Active Flights", status['active_flights'])
-            
-            if status['total_departures'] > 0:
-                st.metric("Avg Dep Delay", f"{status['avg_departure_delay']:.1f} min")
-                st.progress(status['on_time_departure_pct'] / 100, text=f"On-Time Dep: {status['on_time_departure_pct']:.1f}%")
-            
-            if status['total_arrivals'] > 0:
-                st.metric("Avg Arr Delay", f"{status['avg_arrival_delay']:.1f} min")
-                st.progress(status['on_time_arrival_pct'] / 100, text=f"On-Time Arr: {status['on_time_arrival_pct']:.1f}%")
+    # Prepare data for table
+    airport_data = []
+    for airport_code in airports:
+        status = create_airport_status_panel(G, airport_code, current_time)
+        airport_data.append({
+            'Airport': status['airport_code'],
+            'Airport Name': status['airport_name'],
+            'Departures': status['total_departures'],
+            'Arrivals': status['total_arrivals'],
+            'Active Flights': status['active_flights'],
+            'Avg Dep Delay': round(status['avg_departure_delay'], 1) if status['total_departures'] > 0 else None,
+            'Avg Arr Delay': round(status['avg_arrival_delay'], 1) if status['total_arrivals'] > 0 else None,
+            'On-Time Dep %': round(status['on_time_departure_pct'], 1) if status['total_departures'] > 0 else None,
+            'On-Time Arr %': round(status['on_time_arrival_pct'], 1) if status['total_arrivals'] > 0 else None,
+        })
+    
+    airport_df = pd.DataFrame(airport_data)
+    
+    # Configure AgGrid
+    gb = GridOptionsBuilder.from_dataframe(airport_df)
+    gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
+    gb.configure_default_column(filterable=True, sortable=True, resizable=True)
+    gb.configure_column("Airport", pinned='left', width=80)
+    gb.configure_column("Airport Name", width=200)
+    gb.configure_column("Departures", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0)
+    gb.configure_column("Arrivals", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0)
+    gb.configure_column("Active Flights", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0)
+    gb.configure_column("Avg Dep Delay", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=1)
+    gb.configure_column("Avg Arr Delay", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=1)
+    gb.configure_column("On-Time Dep %", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=1)
+    gb.configure_column("On-Time Arr %", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=1)
+    grid_options = gb.build()
+    
+    # Display AgGrid table
+    AgGrid(
+        airport_df,
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.FILTERING_CHANGED | GridUpdateMode.SORTING_CHANGED,
+        allow_unsafe_jscode=True,
+        height=200,
+        theme='streamlit'
+    )
     
     # Flight Volume Timeline
     st.header("📊 Flight Volume Timeline")
     
     with st.spinner("Calculating flight volume timeline..."):
-        # Sample at 1-minute intervals for performance
-        volume_df = get_flight_volume_timeline(G, first_departure, last_arrival, interval_minutes=1)
+        # Get data for flights enroute and cumulative delays
+        # Sample at 1-minute intervals for performance (can increase for larger datasets)
+        enroute_df = get_flights_enroute_over_time(G, first_departure, last_arrival, interval_minutes=1)
+        outbound_delay_df = get_cumulative_delay_over_time(G, first_departure, last_arrival, interval_minutes=1, delay_type='departure')
+        inbound_delay_df = get_cumulative_delay_over_time(G, first_departure, last_arrival, interval_minutes=1, delay_type='arrival')
+        
+        # Merge dataframes on time (columns are already correctly named)
+        # Start with enroute data as base
+        volume_df = enroute_df.copy()
+        
+        # Merge delay dataframes if they exist and have data
+        if not outbound_delay_df.empty:
+            volume_df = volume_df.merge(outbound_delay_df, on='time', how='outer')
+        else:
+            volume_df['cumulative_outbound_delay'] = 0
+        
+        if not inbound_delay_df.empty:
+            volume_df = volume_df.merge(inbound_delay_df, on='time', how='outer')
+        else:
+            volume_df['cumulative_inbound_delay'] = 0
+        
+        # Sort by time and fill missing values
+        volume_df = volume_df.sort_values('time').reset_index(drop=True)
+        
+        # Forward-fill missing values for cumulative delays (they should be monotonically increasing)
+        if 'cumulative_outbound_delay' in volume_df.columns:
+            volume_df['cumulative_outbound_delay'] = pd.to_numeric(volume_df['cumulative_outbound_delay'], errors='coerce').ffill().fillna(0)
+        if 'cumulative_inbound_delay' in volume_df.columns:
+            volume_df['cumulative_inbound_delay'] = pd.to_numeric(volume_df['cumulative_inbound_delay'], errors='coerce').ffill().fillna(0)
+        if 'flights_enroute' in volume_df.columns:
+            volume_df['flights_enroute'] = pd.to_numeric(volume_df['flights_enroute'], errors='coerce').fillna(0)
+        
+        # Ensure time column is datetime
+        volume_df['time'] = pd.to_datetime(volume_df['time'])
+        
         volume_fig = create_flight_volume_chart(volume_df, current_time)
         st.plotly_chart(volume_fig, use_container_width=True)
     
     # Event Timeline
     st.header("📅 Event Timeline")
     
-    # Get events in a window around current time (show last 10 events and next 10)
-    window_start = max(first_departure, current_time - timedelta(minutes=30))
-    window_end = min(last_arrival, current_time + timedelta(minutes=30))
+    # Show all events by default (not just a window around current time)
+    # This allows users to see all departures and arrivals
+    # The table can be filtered by time range using the sortable/filterable functionality
+    window_start = first_departure
+    window_end = last_arrival
     
     events = get_events_in_window(G, window_start, window_end)
     
     if events:
-        # Convert to DataFrame for display
-        events_df = pd.DataFrame([
-            {
-                'Timestamp': event['timestamp'].strftime('%Y-%m-%d %H:%M:%S UTC'),
-                'Time': event['timestamp'].strftime('%H:%M:%S'),
-                'Airport': event['airport'],
-                'Event Type': event['event_type'].upper(),
-                'Flight ID': event['flight_id']
-            }
-            for event in events
-        ])
+        # Build events DataFrame with route and delay information
+        events_data = []
+        for event in events:
+            flight_id = event.get('flight_id', 'unknown')
+            event_type = event.get('event_type', 'unknown').lower()
+            airport = event.get('airport', '')
+            timestamp = event.get('timestamp')
+            
+            # Find flight edge to get route and delay information
+            route = 'N/A'
+            delay = None
+            status = 'Unknown'
+            
+            # Search for flight in graph edges
+            for origin, destination, key, data in G.edges(data=True, keys=True):
+                if data.get('flight_id') == flight_id:
+                    route = f"{origin} → {destination}"
+                    
+                    # Get appropriate delay based on event type
+                    if event_type == 'departure':
+                        delay = data.get('departure_delay_minutes', 0) or 0
+                    elif event_type == 'arrival':
+                        delay = data.get('arrival_delay_minutes', 0) or 0
+                    
+                    # Determine status
+                    if delay is not None:
+                        if delay < -15:
+                            status = 'Early'
+                        elif delay <= 15:
+                            status = 'On-Time'
+                        elif delay <= 30:
+                            status = 'Moderate Delay'
+                        else:
+                            status = 'Significant Delay'
+                    break
+            
+            events_data.append({
+                'Timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if timestamp else '',
+                'Time': timestamp.strftime('%H:%M:%S') if timestamp else '',
+                'Event Type': event_type.upper(),
+                'Airport': airport,
+                'Flight ID': flight_id,
+                'Route': route,
+                'Delay': round(float(delay), 1) if delay is not None else None,
+                'Status': status
+            })
         
-        st.dataframe(events_df, use_container_width=True, hide_index=True)
+        events_df = pd.DataFrame(events_data)
+        
+        # Configure AgGrid for events table
+        gb_events = GridOptionsBuilder.from_dataframe(events_df)
+        gb_events.configure_pagination(paginationAutoPageSize=False, paginationPageSize=20)
+        
+        # Enable side bar for filter menu
+        gb_events.configure_side_bar()
+        
+        # Set default: all columns filterable, sortable, resizable
+        gb_events.configure_default_column(
+            filterable=True,  # Enable filtering for all columns by default
+            sortable=True, 
+            resizable=True
+        )
+        
+        # Configure each column explicitly with filterable=True
+        # Explicitly configure filter for text columns to ensure they're filterable
+        # Use filterParams to configure filter options
+        text_columns = ["Timestamp", "Time", "Event Type", "Airport", "Flight ID", "Route", "Status"]
+        for col in text_columns:
+            if col == "Timestamp":
+                gb_events.configure_column(col, width=200, pinned='left', filterable=True, sortable=True)
+            elif col == "Time":
+                gb_events.configure_column(col, width=100, filterable=True, sortable=True)
+            elif col == "Event Type":
+                gb_events.configure_column(col, width=100, filterable=True, sortable=True)
+            elif col == "Airport":
+                gb_events.configure_column(col, width=80, filterable=True, sortable=True)
+            elif col == "Flight ID":
+                gb_events.configure_column(col, width=200, filterable=True, sortable=True)
+            elif col == "Route":
+                gb_events.configure_column(col, width=120, filterable=True, sortable=True)
+            elif col == "Status":
+                gb_events.configure_column(col, width=150, filterable=True, sortable=True)
+        
+        # Delay column - numeric with numberColumnFilter (already specified in type)
+        gb_events.configure_column(
+            "Delay", 
+            type=["numericColumn", "numberColumnFilter", "customNumericFormat"], 
+            precision=1, 
+            width=100,
+            filterable=True,
+            sortable=True
+        )
+        
+        # Configure selection mode
+        gb_events.configure_selection('single')
+        grid_options_events = gb_events.build()
+        
+        # After building, explicitly set filter for text columns in the grid options
+        # This ensures text columns have the agTextColumnFilter enabled
+        if 'columnDefs' in grid_options_events:
+            for col_def in grid_options_events['columnDefs']:
+                field_name = col_def.get('field', '')
+                # Ensure all columns are filterable
+                col_def['filterable'] = True
+                # For text columns (not Delay which is numeric), set explicit text filter
+                if field_name != 'Delay' and field_name in text_columns:
+                    col_def['filter'] = 'agTextColumnFilter'
+                    # Add filter params for text columns
+                    if 'filterParams' not in col_def:
+                        col_def['filterParams'] = {
+                            'filterOptions': ['equals', 'notEqual', 'contains', 'notContains', 'startsWith', 'endsWith']
+                        }
+        
+        # Display AgGrid table
+        AgGrid(
+            events_df,
+            gridOptions=grid_options_events,
+            update_mode=GridUpdateMode.FILTERING_CHANGED | GridUpdateMode.SORTING_CHANGED,
+            allow_unsafe_jscode=True,
+            height=400,
+            theme='streamlit'
+        )
     else:
         st.info("No events in this time window.")
     

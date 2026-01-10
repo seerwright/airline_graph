@@ -61,12 +61,18 @@ def load_airports(file_path: Path) -> Dict[str, Dict]:
                 print(f"  ⚠️  Row {row_num}: Missing airport_code, skipping")
                 continue
             
+            # Parse latitude/longitude if available
+            latitude = row.get('latitude', '').strip()
+            longitude = row.get('longitude', '').strip()
+            
             airports[airport_code] = {
                 'airport_code': airport_code,
                 'airport_name': row.get('airport_name', '').strip(),
                 'city': row.get('city', '').strip(),
                 'state': row.get('state', '').strip(),
                 'country': row.get('country', '').strip(),
+                'latitude': latitude if latitude else None,
+                'longitude': longitude if longitude else None,
             }
     
     print(f"  ✓ Loaded {len(airports)} airports: {', '.join(sorted(airports.keys()))}")

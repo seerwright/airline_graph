@@ -9,6 +9,8 @@
       "city": "Atlanta",
       "state": "GA",
       "country": "USA",
+      "latitude": 33.6407,
+      "longitude": -84.4277,
       "last_updated": "2026-01-01T11:22:00+00:00",
       "time_snapshots": [
         {
@@ -156,6 +158,8 @@
       "city": "New York",
       "state": "NY",
       "country": "USA",
+      "latitude": 40.7769,
+      "longitude": -73.874,
       "last_updated": "2026-01-01T12:42:00+00:00",
       "time_snapshots": [
         {
@@ -303,6 +307,8 @@
       "city": "Salt Lake City",
       "state": "UT",
       "country": "USA",
+      "latitude": 40.7899,
+      "longitude": -111.9791,
       "last_updated": "2026-01-01T12:38:00+00:00",
       "time_snapshots": [
         {
