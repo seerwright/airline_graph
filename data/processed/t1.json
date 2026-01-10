@@ -1,0 +1,562 @@
+{
+  "directed": true,
+  "multigraph": true,
+  "graph": {},
+  "nodes": [
+    {
+      "airport_code": "ATL",
+      "airport_name": "Hartsfield-Jackson Atlanta International Airport",
+      "city": "Atlanta",
+      "state": "GA",
+      "country": "USA",
+      "last_updated": "2026-01-01T11:22:00+00:00",
+      "time_snapshots": [
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN1234_2026-01-01_ATL_LGA",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 1,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN567_2026-01-01_ATL_LGA",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 2,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN678_2026-01-01_ATL_LGA",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 3,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN234_2026-01-01_ATL_SLC",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T10:43:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN890_2026-01-01_LGA_ATL",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 3
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 1,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 3.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T10:50:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN901_2026-01-01_LGA_ATL",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 5
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 2,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 4.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T10:52:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN246_2026-01-01_LGA_ATL",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 2
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 3,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 3.33,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T11:22:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN456_2026-01-01_SLC_ATL",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 2
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 4,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 3.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        }
+      ],
+      "id": "ATL"
+    },
+    {
+      "airport_code": "LGA",
+      "airport_name": "LaGuardia Airport",
+      "city": "New York",
+      "state": "NY",
+      "country": "USA",
+      "last_updated": "2026-01-01T12:42:00+00:00",
+      "time_snapshots": [
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN890_2026-01-01_LGA_ATL",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 1,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN901_2026-01-01_LGA_ATL",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 2,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN246_2026-01-01_LGA_ATL",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 3,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN789_2026-01-01_LGA_SLC",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T10:33:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN1234_2026-01-01_ATL_LGA",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 3
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 1,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 3.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T10:40:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN567_2026-01-01_ATL_LGA",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 5
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 2,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 4.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T10:45:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN678_2026-01-01_ATL_LGA",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 5
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 3,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 4.33,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T12:42:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN345_2026-01-01_SLC_LGA",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 7
+          },
+          "cumulative": {
+            "total_departures": 4,
+            "total_arrivals": 4,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 5.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        }
+      ],
+      "id": "LGA"
+    },
+    {
+      "airport_code": "SLC",
+      "airport_name": "Salt Lake City International Airport",
+      "city": "Salt Lake City",
+      "state": "UT",
+      "country": "USA",
+      "last_updated": "2026-01-01T12:38:00+00:00",
+      "time_snapshots": [
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN456_2026-01-01_SLC_ATL",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 1,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T08:00:00+00:00",
+          "event_type": "departure",
+          "event_flight_id": "WN345_2026-01-01_SLC_LGA",
+          "incremental": {
+            "departures": 1,
+            "departure_delay_minutes": 0
+          },
+          "cumulative": {
+            "total_departures": 2,
+            "total_arrivals": 0,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 0.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 0.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T11:18:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN234_2026-01-01_ATL_SLC",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 3
+          },
+          "cumulative": {
+            "total_departures": 2,
+            "total_arrivals": 1,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 3.0,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        },
+        {
+          "timestamp": "2026-01-01T12:38:00+00:00",
+          "event_type": "arrival",
+          "event_flight_id": "WN789_2026-01-01_LGA_SLC",
+          "incremental": {
+            "arrivals": 1,
+            "arrival_delay_minutes": 8
+          },
+          "cumulative": {
+            "total_departures": 2,
+            "total_arrivals": 2,
+            "avg_departure_delay": 0.0,
+            "avg_arrival_delay": 5.5,
+            "on_time_departure_pct": 100.0,
+            "on_time_arrival_pct": 100.0
+          }
+        }
+      ],
+      "id": "SLC"
+    }
+  ],
+  "edges": [
+    {
+      "flight_id": "WN1234_2026-01-01_ATL_LGA",
+      "flight_number": "1234",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T10:30:00+00:00",
+      "actual_arrival_gate": "2026-01-01T10:33:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 3,
+      "source": "ATL",
+      "target": "LGA",
+      "key": 0
+    },
+    {
+      "flight_id": "WN567_2026-01-01_ATL_LGA",
+      "flight_number": "567",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T10:35:00+00:00",
+      "actual_arrival_gate": "2026-01-01T10:40:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 5,
+      "source": "ATL",
+      "target": "LGA",
+      "key": 1
+    },
+    {
+      "flight_id": "WN678_2026-01-01_ATL_LGA",
+      "flight_number": "678",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T10:40:00+00:00",
+      "actual_arrival_gate": "2026-01-01T10:45:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 5,
+      "source": "ATL",
+      "target": "LGA",
+      "key": 2
+    },
+    {
+      "flight_id": "WN234_2026-01-01_ATL_SLC",
+      "flight_number": "234",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T11:15:00+00:00",
+      "actual_arrival_gate": "2026-01-01T11:18:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 3,
+      "source": "ATL",
+      "target": "SLC",
+      "key": 0
+    },
+    {
+      "flight_id": "WN890_2026-01-01_LGA_ATL",
+      "flight_number": "890",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T10:40:00+00:00",
+      "actual_arrival_gate": "2026-01-01T10:43:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 3,
+      "source": "LGA",
+      "target": "ATL",
+      "key": 0
+    },
+    {
+      "flight_id": "WN901_2026-01-01_LGA_ATL",
+      "flight_number": "901",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T10:45:00+00:00",
+      "actual_arrival_gate": "2026-01-01T10:50:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 5,
+      "source": "LGA",
+      "target": "ATL",
+      "key": 1
+    },
+    {
+      "flight_id": "WN246_2026-01-01_LGA_ATL",
+      "flight_number": "246",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T10:50:00+00:00",
+      "actual_arrival_gate": "2026-01-01T10:52:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 2,
+      "source": "LGA",
+      "target": "ATL",
+      "key": 2
+    },
+    {
+      "flight_id": "WN789_2026-01-01_LGA_SLC",
+      "flight_number": "789",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T12:30:00+00:00",
+      "actual_arrival_gate": "2026-01-01T12:38:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 8,
+      "source": "LGA",
+      "target": "SLC",
+      "key": 0
+    },
+    {
+      "flight_id": "WN456_2026-01-01_SLC_ATL",
+      "flight_number": "456",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T11:20:00+00:00",
+      "actual_arrival_gate": "2026-01-01T11:22:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 2,
+      "source": "SLC",
+      "target": "ATL",
+      "key": 0
+    },
+    {
+      "flight_id": "WN345_2026-01-01_SLC_LGA",
+      "flight_number": "345",
+      "carrier": "WN",
+      "equipment": "B737",
+      "equipment_class": "J",
+      "scheduled_departure_gate": "2026-01-01T08:00:00+00:00",
+      "actual_departure_gate": "2026-01-01T08:00:00+00:00",
+      "scheduled_arrival_gate": "2026-01-01T12:35:00+00:00",
+      "actual_arrival_gate": "2026-01-01T12:42:00+00:00",
+      "flight_date": "2026-01-01",
+      "flight_month_year": "202601",
+      "departure_delay_minutes": 0,
+      "arrival_delay_minutes": 7,
+      "source": "SLC",
+      "target": "LGA",
+      "key": 0
+    }
+  ]
+}
