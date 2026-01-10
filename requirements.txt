@@ -10,7 +10,10 @@ numpy>=1.24
 # Optional: For visualization
 matplotlib>=3.7
 seaborn>=0.12
-plotly>=5.0
+plotly>=5.17.0
+
+# Dashboard framework
+streamlit>=1.28.0
 
 # Optional: For data analysis
 jupyter>=1.0
